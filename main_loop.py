@@ -1,6 +1,29 @@
 import time
 import os
 import sys
+
+# FIX: Configurar ruta de Git explícitamente para GitPython en Windows
+# Esto debe hacerse ANTES de importar git
+if os.name == 'nt': # Solo para Windows
+    # Intentar rutas comunes de instalación de Git
+    possible_git_paths = [
+        r"C:\Program Files\Git\cmd\git.exe",
+        r"C:\Program Files (x86)\Git\cmd\git.exe",
+    ]
+    
+    # Buscar si ya está en el PATH
+    import shutil
+    git_in_path = shutil.which('git')
+    
+    if git_in_path:
+        os.environ['GIT_PYTHON_GIT_EXECUTABLE'] = git_in_path
+    else:
+        # Si no está en PATH, buscar en rutas comunes
+        for path in possible_git_paths:
+            if os.path.exists(path):
+                os.environ['GIT_PYTHON_GIT_EXECUTABLE'] = path
+                break
+
 from git import Repo
 from src.market_analytics import MarketAnalytics
 

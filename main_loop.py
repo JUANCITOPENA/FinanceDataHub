@@ -6,8 +6,7 @@ from src.market_fetcher import MarketFetcher
 from src.finance_manager import FinanceManager, InventoryManager
 
 # CONFIGURACIÓN
-# ¡¡¡ CAMBIA ESTO POR TU URL DE GITHUB !!!
-GITHUB_REPO_URL = "https://github.com/TU_USUARIO/FinanceDataHub.git" 
+GITHUB_REPO_URL = "https://github.com/JUANCITOPENA/FinanceDataHub.git" 
 INTERVALO_MINUTOS = 5
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(PROJECT_DIR, "data")

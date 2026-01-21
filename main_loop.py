@@ -1,9 +1,8 @@
 import time
 import os
 import sys
-from git import Repo, GitCommandError
-from src.market_fetcher import MarketFetcher
-from src.finance_manager import FinanceManager, InventoryManager
+from git import Repo
+from src.market_analytics import MarketAnalytics
 
 # CONFIGURACIÓN
 GITHUB_REPO_URL = "https://github.com/JUANCITOPENA/FinanceDataHub.git" 
@@ -15,51 +14,48 @@ def git_push_changes():
     try:
         repo = Repo(PROJECT_DIR)
         
-        # 1. Add all changes
-        print("GIT: Agregando cambios...")
-        repo.git.add('--all')
+        # Verificar si hay cambios reales
+        if not repo.is_dirty(untracked_files=True):
+            print("GIT: No hay cambios nuevos en los datos.")
+            return
+
+        print("GIT: Detectados nuevos datos. Sincronizando...")
         
-        # 2. Check if there are changes to commit
-        if repo.is_dirty(untracked_files=True):
-            # 3. Commit
-            print("GIT: Haciendo commit...")
-            repo.index.commit(f"Auto-update: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            
-            # 4. Push
-            # Nota: Esto requiere que tengas credenciales configuradas o SSH
-            print("GIT: Subiendo a GitHub (Push)...")
-            origin = repo.remote(name='origin')
-            origin.push()
-            print("GIT: ¡Éxito! Datos sincronizados.")
-        else:
-            print("GIT: No hay cambios nuevos.")
+        # Git Add
+        repo.git.add(all=True)
+        
+        # Git Commit
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        repo.index.commit(f"Auto-Update: Financial Analytics {timestamp}")
+        
+        # Git Push
+        origin = repo.remote(name='origin')
+        origin.push()
+        print(f"GIT: Push completado exitosamente a las {timestamp}")
             
     except Exception as e:
         print(f"ERROR GIT: {e}")
 
 def main():
-    print("=== INICIANDO SISTEMA DE DATOS FINANCIEROS ===")
-    print(f"Directorio: {PROJECT_DIR}")
-    print(f"Intervalo: {INTERVALO_MINUTOS} minutos")
+    print("=== SISTEMA DE INTELIGENCIA FINANCIERA (AUTO-BOT) ===")
+    print(f"Monitor: {MarketAnalytics(DATA_DIR).tickers}")
+    print(f"Frecuencia: {INTERVALO_MINUTOS} minutos")
     
-    # Inicializar módulos
-    market = MarketFetcher(DATA_DIR)
-    finance = FinanceManager(DATA_DIR)
-    inventory = InventoryManager(DATA_DIR)
+    # Inicializar motor
+    engine = MarketAnalytics(DATA_DIR)
     
     while True:
-        print(f"\n[{time.strftime('%H:%M:%S')}] Ejecutando ciclo de actualización...")
+        print(f"\n[{time.strftime('%H:%M:%S')}] Iniciando escaneo de mercado...")
         
-        # 1. Obtener Datos
-        market.fetch_data()
-        finance.generate_dummy_data()
-        inventory.generate_dummy_data()
+        # 1. Ejecutar Análisis Financiero
+        success = engine.run_analysis()
         
-        # 2. Sincronizar con GitHub
-        git_push_changes()
+        # 2. Subir a la nube si todo salió bien
+        if success:
+            git_push_changes()
         
         # 3. Esperar
-        print(f"Durmiendo {INTERVALO_MINUTOS} minutos...")
+        print(f"Sistema en espera... Próxima actualización en {INTERVALO_MINUTOS} min.")
         time.sleep(INTERVALO_MINUTOS * 60)
 
 if __name__ == "__main__":

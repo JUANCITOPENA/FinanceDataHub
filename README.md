@@ -72,6 +72,10 @@ python main_loop.py
 
 > **Nota:** Verás logs indicando "Iniciando escaneo...", "Procesado OK" y "GIT: Push completado".
 
+
+### Terminal ejectando el Bot
+
+![Portada](Screenshot_764.png)
 ---
 
 ## 📊 Visualización en Power BI

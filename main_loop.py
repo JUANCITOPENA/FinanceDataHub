@@ -37,6 +37,13 @@ def git_push_changes():
     try:
         repo = Repo(PROJECT_DIR)
         
+        # Intentar Pull primero para evitar conflictos al hacer Push
+        try:
+            print("GIT: Sincronizando cambios remotos...")
+            repo.git.pull()
+        except Exception as e:
+            print(f"GIT WARN: No se pudo hacer pull (posiblemente no hay upstream o conflicto): {e}")
+
         # Verificar si hay cambios reales
         if not repo.is_dirty(untracked_files=True):
             print("GIT: No hay cambios nuevos en los datos.")

@@ -115,7 +115,11 @@ class MarketAnalytics:
             
             # Aseguramos que existan las columnas (por si alguna falló, aunque no debería)
             cols_to_export = [c for c in cols if c in final_df.columns]
-            final_df = final_df[cols_to_export].round(4) # Redondeo a 4 decimales para precisión financiera
+            final_df = final_df[cols_to_export].copy()
+            
+            # Redondear solo columnas numéricas para evitar warnings con fechas
+            numeric_cols = final_df.select_dtypes(include=[np.number]).columns
+            final_df[numeric_cols] = final_df[numeric_cols].round(4)
             
             # Crear directorio si no existe
             if not os.path.exists(self.output_dir):

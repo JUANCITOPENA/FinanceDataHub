@@ -1,36 +1,33 @@
-# Manual de Implementación Técnica: Power BI & FinanceDataHub
+# 📘 Manual de Implementación Técnica: Power BI & FinanceDataHub
 
-**Versión:** 4.0 (Enero 2026)  
+**Versión:** 5.0 (Definitiva - Enero 2026)  
 **Desarrollador:** Juancito Peña  
 **Tecnologías:** Power BI • DAX • HTML/CSS (Visual HTML Content) • Python • SVG
 
 ---
 
-## 🌟 Contexto del Proyecto: Finance Data Hub
+## 🌟 1. Introducción y Contexto
 
-Este manual es la guía definitiva para el ecosistema **Finance Data Hub**, una plataforma de inteligencia financiera automatizada.
+### Planteamiento del Problema
+Los dashboards financieros estándar en Power BI suelen carecer de flexibilidad visual y dependen de actualizaciones manuales. Las tablas nativas son rígidas y los gráficos estándar no permiten personalizaciones avanzadas como micro-gráficos SVG o layouts web complejos.
 
-### 🔗 Link al Dashboard en Vivo
-👉 **[Ver Dashboard Power BI Online](https://app.powerbi.com/view?r=eyJrIjoiNmNhNTg3MzctMTkzMC00Mjk5LTk3NTctYTQxNjFjNTg4ZTRmIiwidCI6IjMwOTE4NjllLTFiNWMtNDlhNy1iZWQwLTA1ODJiMjBlYzg0NSIsImMiOjJ9)**
+### Solución Propuesta: Finance Data Hub
+Hemos desarrollado una arquitectura híbrida:
+1.  **Backend (Python):** Un script (`main_loop.py`) automatiza la extracción de datos de Yahoo Finance y la sincronización con GitHub.
+2.  **Frontend (Power BI + HTML):** Utilizamos el visual personalizado `HTML Content` para renderizar interfaces web dentro de Power BI, permitiendo un control total sobre el diseño (gradientes, sombras, tipografía).
 
-### 🧠 ¿Qué problema solucionamos?
-Los reportes financieros tradicionales suelen ser estáticos y limitados visualmente.
-1.  **Datos:** Automatizamos la descarga de precios (Yahoo Finance) con un script Python (`main_loop.py`) que sincroniza con GitHub cada 5 minutos.
-2.  **Visualización:** Rompemos las limitaciones de Power BI usando **HTML/CSS dinámico**. Esto permite crear tarjetas, tablas y micro-gráficos que se comportan como una aplicación web moderna, con estilos oscuros, gradientes y lógica de negocio (colores, iconos) integrada.
+### 🔗 Dashboard en Vivo
+👉 **[Acceder al Reporte Online](https://app.powerbi.com/view?r=eyJrIjoiNmNhNTg3MzctMTkzMC00Mjk5LTk3NTctYTQxNjFjNTg4ZTRmIiwidCI6IjMwOTE4NjllLTFiNWMtNDlhNy1iZWQwLTA1ODJiMjBlYzg0NSIsImMiOjJ9)**
 
 ---
 
-## 🛠️ Fase 1: Preparación del Entorno
+## ⚙️ 2. Configuración del Modelo de Datos
 
-### 1. Instalación del Visual "HTML Content"
-Para renderizar nuestros diseños web personalizados:
-1.  En Power BI Desktop, panel **Visualizaciones**.
-2.  Clic `(...)` -> **Obtener más objetos visuales**.
-3.  Busca y agrega: `HTML Content` (Certificado).
+Antes de las medidas, necesitamos estructuras auxiliares.
 
-### 2. Tabla de Riesgo (Modelado)
-Para segmentar activos por volatilidad sin afectar la data original.
-*   Pestaña **Modelado** -> **Nueva tabla**:
+### Tabla de Riesgo (Segmentación)
+*   **Propósito:** Crear una tabla desconectada para definir rangos de volatilidad sin filtrar los datos transaccionales.
+*   **Creación:** Pestaña *Modelado* > *Nueva Tabla*.
 
 ```dax
 Tab_Riesgo = DATATABLE(
@@ -43,27 +40,30 @@ Tab_Riesgo = DATATABLE(
 )
 ```
 
-### 3. Tabla de Actualización Real (Power Query)
-Para mostrar la hora exacta del último refresh con precisión de segundos.
-1.  **Transformar datos** -> **Nueva fuente** -> **Consulta en blanco**.
-2.  Pega en la barra de fórmulas: `= #table(type table[UltimaCarga=datetime], {{DateTime.LocalNow()}})`
-3.  Renombra a `Refresh_Log` y cierra.
-
 ---
 
-## 🧠 Fase 2: Medidas DAX Fundamentales (El Motor)
+## 🧠 3. Definición de Medidas DAX (Core)
 
-Estas medidas calculan los KPIs que luego inyectaremos en el HTML.
+A continuación, se detallan las medidas fundamentales.
 
-### A. Precios y Variaciones
+### 💰 Medida: Precio Actual
+*   **Propósito:** Obtener el valor de cierre más reciente del activo en el contexto seleccionado.
+*   **Uso:** Tarjetas principales, cálculos de variación y encabezados.
+*   **Contexto:** Evalúa la fecha máxima visible (`LASTDATE`) para asegurar que siempre se muestre el dato "al día", ignorando fechas anteriores en el rango.
+*   **Fórmula:**
 ```dax
-// 1. Precio de Cierre más reciente
 Precio Actual = 
 VAR _UltimaFecha = LASTDATE('financial_market_data'[Date])
 RETURN
 CALCULATE(SUM('financial_market_data'[Close]), _UltimaFecha)
+```
 
-// 2. Variación porcentual (Rendimiento del periodo)
+### 📉 Medida: Variación Porcentual
+*   **Propósito:** Calcular el rendimiento del activo durante el periodo seleccionado.
+*   **Uso:** Indicadores de color (Verde/Rojo) y flechas de tendencia.
+*   **Contexto:** Compara el precio en la `LASTDATE` contra el precio en la `FIRSTDATE` del contexto de filtro actual.
+*   **Fórmula:**
+```dax
 Variación % = 
 VAR PrecioInicio = CALCULATE(SUM('financial_market_data'[Close]), FIRSTDATE('financial_market_data'[Date]))
 VAR PrecioFin = [Precio Actual]
@@ -71,15 +71,24 @@ RETURN
 DIVIDE(PrecioFin - PrecioInicio, PrecioInicio)
 ```
 
-### B. Indicadores Técnicos (RSI)
+### 📊 Medida: RSI Actual (Indicador Técnico)
+*   **Propósito:** Mostrar el Índice de Fuerza Relativa (RSI) actual.
+*   **Uso:** Badges de estado y semáforos de compra/venta.
+*   **Contexto:** Promedia el RSI a la fecha de corte más reciente.
+*   **Fórmula:**
 ```dax
-// 3. Promedio RSI
 RSI Actual = 
 VAR _UltimaFecha = LASTDATE('financial_market_data'[Date])
 RETURN
 CALCULATE(AVERAGE('financial_market_data'[RSI_14]), _UltimaFecha)
+```
 
-// 4. Estado del RSI (Texto)
+### 🚦 Medida: Estado RSI (Semáforo)
+*   **Propósito:** Traducir el número RSI a lenguaje de negocio legible.
+*   **Uso:** Etiquetas de texto en las tarjetas.
+*   **Contexto:** Lógica condicional: >70 (Sobrecompra/Venta), <30 (Sobreventa/Compra).
+*   **Fórmula:**
+```dax
 Estado RSI = 
 VAR _RSI = [RSI Actual]
 RETURN
@@ -89,524 +98,151 @@ SWITCH(TRUE(),
     _RSI <= 30, "Sobreventa",
     "Neutral"
 )
+```
 
-// 5. Color Hexadecimal para HTML
+### 🎨 Medida: Color RSI (Hexadecimal)
+*   **Propósito:** Proveer el código de color dinámico para CSS.
+*   **Uso:** Estilos `color:` o `background-color:` en las medidas HTML.
+*   **Contexto:** Retorna strings hexadecimales (#RRGGBB).
+*   **Fórmula:**
+```dax
 Color RSI = 
 VAR _RSI = [RSI Actual]
 RETURN
 SWITCH(TRUE(),
-    _RSI >= 70, "#ff1744", // Rojo (Venta)
-    _RSI <= 30, "#00c853", // Verde (Compra)
-    "#ffea00"              // Amarillo (Neutral)
+    _RSI >= 70, "#ff1744", // Rojo
+    _RSI <= 30, "#00c853", // Verde
+    "#ffea00"              // Amarillo
 )
 ```
 
-### C. Volatilidad y Tendencia
+### ⚡ Medida: Volatilidad Promedio
+*   **Propósito:** Medir el riesgo del activo.
+*   **Uso:** Gráficos de barras de riesgo.
+*   **Contexto:** Promedio simple de la columna `Volatility_Annualized`.
+*   **Fórmula:**
 ```dax
-// 6. Volatilidad Anualizada
 Volatilidad Promedio = AVERAGE('financial_market_data'[Volatility_Annualized])
+```
 
-// 7. Señal de Tendencia (Texto de la SMA)
+### 🧭 Medida: Tendencia SMA
+*   **Propósito:** Indicar la dirección del mercado (Alcista/Bajista) basada en Medias Móviles.
+*   **Uso:** Emojis y texto de tendencia.
+*   **Contexto:** Extrae el último valor calculado por Python en la columna `Signal_Trend`.
+*   **Fórmula:**
+```dax
 Tendencia SMA = 
 VAR _UltimaFecha = LASTDATE('financial_market_data'[Date])
 RETURN
 CALCULATE(MAX('financial_market_data'[Signal_Trend]), _UltimaFecha)
-
-// 8. Filtro para Segmentador de Riesgo
-Filtro_Nivel_Riesgo = 
-VAR _Vol = [Volatilidad Promedio]
-VAR _Min = MIN(Tab_Riesgo[Min])
-VAR _Max = MAX(Tab_Riesgo[Max])
-RETURN
-IF(_Vol >= _Min && _Vol < _Max, 1, 0)
 ```
 
 ---
 
-## ✨ Fase 3: Visuales Avanzados (HTML/CSS/SVG)
+## ⏱️ 4. Indicador de Última Actualización (3 Métodos)
 
-Explicación detallada de cómo construimos la interfaz.
+Para garantizar la confianza en el dato, implementamos una solución robusta en 3 pasos/métodos complementarios.
 
-### 🟦 1. Barra Superior (Ticker Tape)
-**¿Qué es?** Una barra horizontal con scroll que muestra todos los activos.
-**Tecnología:** Flexbox CSS para la alineación y logos externos.
-**Uso:** Cabecera del reporte.
+### Método 1: Fuente de Verdad (Power Query)
+*   **Propósito:** Capturar la hora del sistema *al momento de la recarga*, no del dato.
+*   **Pasos:**
+    1.  `Transformar datos` -> `Nueva fuente` -> `Consulta en blanco`.
+    2.  Fórmula: `= #table(type table[UltimaCarga=datetime], {{DateTime.LocalNow()}})`
+    3.  Nombre: `Refresh_Log`.
 
+### Método 2: Cálculo DAX (Formato)
+*   **Propósito:** Formatear la fecha capturada para su visualización.
+*   **Fórmula:**
 ```dax
-HTML_TopBar_Cards1 = 
-VAR _Filas =
-    CONCATENATEX(
-        FILTER(VALUES('financial_market_data'[Ticker]), NOT(ISBLANK('financial_market_data'[Ticker])) && [Precio Actual] > 0),
-        VAR _Ticker = 'financial_market_data'[Ticker]
-        VAR _Var = [Variación %]
-        VAR _Precio = [Precio Actual]
-        VAR _Color = IF(_Var >= 0, "#00ff9d", "#ff3d5d")
-        VAR _Icono = IF(_Var >= 0, "▲", "▼")
-        VAR _Logo = SWITCH(_Ticker,
-            "AAPL", "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
-            "MSFT", "https://trendlyne-media-mumbai-new.s3.amazonaws.com/profilepicture/1554053_profilepicture.png",
-            "TSLA", "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Tesla_logo.png/500px-Tesla_logo.png",
-            "NVDA", "https://companieslogo.com/img/orig/NVDA-220e1e03.png?t=1722952498",
-            "BTC-USD", "https://www.criptonoticias.com/wp-content/uploads/2023/10/BC_Logo_.png",
-            "ETH-USD", "https://logokit.com/icons/ETH.png",
-            "https://cdn-icons-png.flaticon.com/256/5588/5588146.png"
-        )
-        RETURN
-        "<div class='mini-card'>
-            <img src='" & _Logo & "' class='mini-logo'>
-            <div class='info'>
-                <div class='ticker'>" & _Ticker & "</div>
-                <div class='price'>$" & FORMAT(_Precio, "#,##0.00") & "</div>
-                <div class='change' style='color: " & _Color & ";'>" & _Icono & " " & FORMAT(ABS(_Var), "0.0%") & "</div>
-            </div>
-        </div>", ""
-    )
-RETURN
-"<style>
-    .top-bar { display: flex; gap: 15px; overflow-x: auto; padding: 10px; font-family: 'Segoe UI', sans-serif; }
-    .mini-card { min-width: 170px; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-    .mini-logo { width: 35px; height: 35px; object-fit: contain; background: white; border-radius: 6px; padding: 4px; }
-    .info { display: flex; flex-direction: column; line-height: 1.2; }
-    .ticker { font-size: 11px; font-weight: 800; color: #8b949e; text-transform: uppercase; }
-    .price { font-size: 16px; font-weight: bold; color: #f0f6fc; }
-    .change { font-size: 11px; font-weight: 900; }
-    .top-bar::-webkit-scrollbar { display: none; }
-</style>
-<div class='top-bar'>" & _Filas & "</div>"
+Ultima_Actualizacion_Real = 
+"ÚLTIMA ACTUALIZACIÓN: " & UPPER(FORMAT(MAX('Refresh_Log'[UltimaCarga]), "dd/MM/yyyy HH:mm:ss"))
 ```
 
-### 📋 2. Tabla Ejecutiva v3 (High Contrast)
-**¿Qué es?** Tabla estilizada con badges de RSI y emojis de tendencia.
-**Tecnología:** CSS Grid/Flexbox y lógica condicional DAX para colores.
-**Uso:** Cuerpo principal del reporte.
-
-```dax
-HTML_Table_Executive_Clean_v3 = 
-VAR _Filas = 
-    CONCATENATEX(
-        FILTER(
-            VALUES('financial_market_data'[Ticker]), 
-            NOT(ISBLANK('financial_market_data'[Ticker])) && [Precio Actual] > 0
-        ),
-        VAR _Ticker = 'financial_market_data'[Ticker]
-        VAR _Precio = [Precio Actual]
-        VAR _Var = [Variación %]
-        VAR _RSI = [RSI Actual]
-        VAR _Vol = [Volatilidad Promedio]
-        VAR _Trend = [Tendencia SMA]
-        
-        VAR _ColorVar = IF(_Var >= 0, "#00ff9d", "#ff3d5d")
-        VAR _ColorRSI = [Color RSI]
-        
-        VAR _TrendColor = SWITCH(_Trend, "Bullish", "#00ff9d", "Bearish", "#ff3d5d", "#ffffff")
-        VAR _TrendEmoji = SWITCH(_Trend, "Bullish", "😊", "Bearish", "☹️", "⚖️")
-        
-        VAR _LogoUrl = SWITCH(_Ticker,
-            "AAPL", "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
-            "MSFT", "https://trendlyne-media-mumbai-new.s3.amazonaws.com/profilepicture/1554053_profilepicture.png",
-            "TSLA", "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Tesla_logo.png/500px-Tesla_logo.png",
-            "NVDA", "https://companieslogo.com/img/orig/NVDA-220e1e03.png?t=1722952498",
-            "BTC-USD", "https://www.criptonoticias.com/wp-content/uploads/2023/10/BC_Logo_.png",
-            "ETH-USD", "https://logokit.com/icons/ETH.png",
-            "https://cdn-icons-png.flaticon.com/256/5588/5588146.png"
-        )
-
-        RETURN
-        "<div class='t-row'>
-            <div class='t-cell cell-ticker'>
-                <img src='" & _LogoUrl & "' class='t-logo'>
-                <span>" & _Ticker & "</span>
-            </div>
-            <div class='t-cell cell-price'>$" & FORMAT(_Precio, "#,##0.00") & "</div>
-            <div class='t-cell cell-var' style='color:" & _ColorVar & ";'>" & IF(_Var >= 0, "+", "") & FORMAT(_Var, "0.00%") & "</div>
-            <div class='t-cell cell-rsi'>
-                <span class='rsi-badge' style='background:" & _ColorRSI & "33; color:" & _ColorRSI & "; border: 1px solid " & _ColorRSI & ";'>" & FORMAT(_RSI, "0.0") & "</span>
-            </div>
-            <div class='t-cell cell-vol' style='color: #ffffff; font-weight: 800;'>" & FORMAT(_Vol, "0.0%") & "</div>
-            <div class='t-cell cell-trend' style='color:" & _TrendColor & "; font-weight: 900;'>
-                " & _TrendEmoji & " " & UPPER(_Trend) & "
-            </div>
-        </div>",
-        ""
-    )
-
-RETURN
-"
-<style>
-    .t-container {
-        font-family: 'Segoe UI', system-ui, sans-serif;
-        background: #0d1117;
-        color: #ffffff;
-        border-radius: 12px;
-        border: 1px solid #30363d;
-    }
-    .t-header {
-        display: flex;
-        background: #161b22;
-        padding: 15px 20px;
-        font-size: 13px;
-        font-weight: 900;
-        color: #ffffff;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        border-bottom: 2px solid #ffffff44;
-    }
-    .t-row {
-        display: flex;
-        padding: 12px 20px;
-        border-bottom: 1px solid #21262d;
-        align-items: center;
-    }
-    .t-cell { flex: 1; font-size: 14px; display: flex; align-items: center; }
-    
-    .cell-ticker { flex: 1.5; font-weight: 800; gap: 10px; }
-    .cell-price { flex: 1.2; font-family: 'Consolas', monospace; color: #ffffff; font-size: 15px; }
-    .cell-var { flex: 1; font-weight: 800; }
-    .cell-rsi { flex: 1; justify-content: center; }
-    .cell-vol { flex: 1; }
-    .cell-trend { flex: 1.5; gap: 8px; font-size: 14px; }
-
-    .t-logo { width: 26px; height: 26px; object-fit: contain; background: white; border-radius: 4px; padding: 2px; }
-    .rsi-badge { padding: 3px 8px; border-radius: 4px; font-weight: 900; }
-</style>
-
-<div class='t-container'>
-    <div class='t-header'>
-        <div style='flex:1.5;'>Activo</div>
-        <div style='flex:1.2;'>Precio Cierre</div>
-        <div style='flex:1;'>Variación</div>
-        <div style='flex:1; text-align:center;'>RSI</div>
-        <div style='flex:1;'>Volatilidad</div>
-        <div style='flex:1.5;'>Tendencia SMA</div>
-    </div>
-    " & _Filas & "
-</div>
-"
-```
-
-### 💎 3. Visual Impacto Master (Con Gráfico SVG)
-**¿Qué es?** Tarjeta de lujo con gráfico de líneas SVG generado dinámicamente.
-**Tecnología:** SVG Path calculada con DAX, Gradientes lineales.
-**Uso:** Detalle de un activo seleccionado.
-
-```dax
-Visual_Impacto_Master_Con_Logos = 
-VAR _Ticker = SELECTEDVALUE('financial_market_data'[Ticker], "Market")
-VAR _Precio = [Precio Actual]
-VAR _Var = [Variación %]
-VAR _RSI = [RSI Actual]
-VAR _EstadoRSI = [Estado RSI]
-VAR _ColorRSI = [Color RSI]
-VAR _Vol = [Volatilidad Promedio]
-VAR _Tendencia = [Tendencia SMA]
-
-VAR _LogoUrl = SWITCH(_Ticker,
-        "AAPL", "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
-        "MSFT", "https://trendlyne-media-mumbai-new.s3.amazonaws.com/profilepicture/1554053_profilepicture.png",
-        "TSLA", "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Tesla_logo.png/500px-Tesla_logo.png",
-        "NVDA", "https://companieslogo.com/img/orig/NVDA-220e1e03.png?t=1722952498",
-        "BTC-USD", "https://www.criptonoticias.com/wp-content/uploads/2023/10/BC_Logo_.png",
-        "ETH-USD", "https://logokit.com/icons/ETH.png",
-        "https://cdn-icons-png.flaticon.com/256/5588/5588146.png"
-    )
-
-VAR _ColorVar = IF(_Var >= 0, "#00ff9d", "#ff3d5d")
-VAR _IconoVar = IF(_Var >= 0, "📈", "📉")
-VAR _TextLight = "#F8F9FA"
-VAR _TextMuted = "#CED4DA"
-
-VAR _NumDias = 30
-VAR _ChartTable = 
-    TOPN(_NumDias, 
-        CALCULATETABLE(
-            SUMMARIZE('financial_market_data', 'financial_market_data'[Date], "Price", SUM('financial_market_data'[Close])),
-            ALLSELECTED('financial_market_data')
-        ), 
-        'financial_market_data'[Date], DESC
-    )
-VAR _MinP = MINX(_ChartTable, [Price])
-VAR _MaxP = MAXX(_ChartTable, [Price])
-VAR _Range = IF(_MaxP - _MinP = 0, 1, _MaxP - _MinP)
-
-VAR _Points = 
-    CONCATENATEX(
-        _ChartTable,
-        VAR _X = INT((DATEDIFF(MINX(_ChartTable, [Date]), 'financial_market_data'[Date], DAY) / _NumDias) * 400)
-        VAR _Y = INT(80 - (([Price] - _MinP) / _Range * 80))
-        RETURN _X & "," & _Y,
-        " ", 'financial_market_data'[Date], ASC
-    )
-
-RETURN
-"
-<style>
-    .card-container {
-        font-family: 'Segoe UI', system-ui, sans-serif;
-        background: #0d1117;
-        color: white;
-        padding: 25px;
-        border-radius: 20px;
-        border: 1px solid #30363d;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .company-info { display: flex; align-items: center; gap: 12px; }
-    .logo-img { width: 35px; height: 35px; border-radius: 8px; background: white; padding: 4px; object-fit: contain; }
-    .ticker-title { font-size: 22px; font-weight: 700; color: " & _TextLight & "; letter-spacing: 0.5px; }
-    
-    .price-section { margin-bottom: 25px; }
-    .main-price { font-size: 58px; font-weight: 800; color: " & _TextLight & "; line-height: 1; margin-bottom: 5px; }
-    .variation { font-size: 24px; font-weight: 600; color: " & _ColorVar & "; display: flex; align-items: center; gap: 8px; }
-
-    .grid-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 20px; border-top: 1px solid #30363d; padding-top: 20px; }
-    .stat-box { background: #161b22; padding: 12px; border-radius: 12px; border: 1px solid #21262d; }
-    .stat-label { font-size: 11px; color: " & _TextMuted & "; text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
-    .stat-val { font-size: 18px; font-weight: bold; color: " & _TextLight & "; }
-    
-    .rsi-badge { background: " & _ColorRSI & "33; color: " & _ColorRSI & "; padding: 2px 8px; border-radius: 6px; font-size: 11px; border: 1px solid " & _ColorRSI & "; }
-    
-    .chart-box { margin-top: 25px; position: relative; }
-    .chart-label { font-size: 12px; color: " & _TextMuted & "; margin-bottom: 10px; font-weight: 600; }
-</style>
-
-<div class='card-container'>
-    <div class='header-row'>
-        <div class='company-info'>
-            <img src='" & _LogoUrl & "' class='logo-img' />
-            <div class='ticker-title'>" & _Ticker & "</div>
-        </div>
-        <div style='color: #58a6ff; font-weight: bold; font-size: 12px;'>FINANCE DATA HUB • LIVE</div>
-    </div>
-
-    <div class='price-section'>
-        <div class='main-price'>$" & FORMAT(_Precio, "#,##0.00") & "</div>
-        <div class='variation'>" & _IconoVar & " " & FORMAT(_Var, "0.00%") & "</div>
-    </div>
-
-    <div class='grid-stats'>
-        <div class='stat-box'>
-            <div class='stat-label'>🧭 TENDENCIA</div>
-            <div class='stat-val'>" & _Tendencia & "</div>
-        </div>
-        <div class='stat-box'>
-            <div class='stat-label'>⚡ VOLATILIDAD</div>
-            <div class='stat-val' style='color: #e3b341;'>" & FORMAT(_Vol, "0.0%") & "</div>
-        </div>
-        <div class='stat-box'>
-            <div class='stat-label'>💪 RSI (14)</div>
-            <div class='stat-val'>
-                " & FORMAT(_RSI, "0.0") & " <span class='rsi-badge'>" & _EstadoRSI & "</span>
-            </div>
-        </div>
-    </div>
-
-    <div class='chart-box'>
-        <div class='chart-label'>📈 EVOLUCIÓN DIARIA (ÚLTIMOS 30 DÍAS)</div>
-        <svg viewBox='0 0 400 80' width='100%' height='100' preserveAspectRatio='none' style='filter: drop-shadow(0 0 5px " & _ColorVar & "44);'>
-            <defs>
-                <linearGradient id='grad' x1='0%' y1='0%' x2='0%' y2='100%'>
-                    <stop offset='0%' style='stop-color:" & _ColorVar & ";stop-opacity:0.3' />
-                    <stop offset='100%' style='stop-color:" & _ColorVar & ";stop-opacity:0' />
-                </linearGradient>
-            </defs>
-            <path d='M 0,80 L " & _Points & " L 400,80 Z' fill='url(#grad)' />
-            <path d='M " & _Points & "' fill='none' stroke='" & _ColorVar & "' stroke-width='3' stroke-linecap='round' />
-        </svg>
-    </div>
-</div>
-"
-```
-
-### ⏱️ 4. Última Actualización (Brillante)
-**¿Qué es?** Indicador de hora exacta.
-**Tecnología:** HTML simple con estilos CSS de alto contraste.
-**Uso:** Cabecera.
-
+### Método 3: Visualización HTML (Brillante)
+*   **Propósito:** Renderizar el dato con alto contraste y estilo "Live".
+*   **Tecnología:** HTML + CSS text-shadow.
+*   **Fórmula:**
 ```dax
 HTML_LastUpdate_Brilliant = 
 VAR _FechaHora = MAX('Refresh_Log'[UltimaCarga])
 RETURN
 "
-<div style='
-    font-family: ""Segoe UI"", sans-serif; 
-    color: #ffffff; 
-    font-weight: 900; 
-    font-size: 14px; 
-    letter-spacing: 1px; 
-    display: flex;
-    align-items: center;
-    gap: 10px;
-'>
+<div style='font-family: ""Segoe UI"", sans-serif; color: #ffffff; font-weight: 900; font-size: 14px; letter-spacing: 1px; display: flex; align-items: center; gap: 10px;'>
     <span style='color: #58a6ff; text-shadow: 0 0 5px #58a6ff88;'>[LIVE_SYSTEM_TIME]</span> 
     <span style='text-transform: uppercase;'>" & FORMAT(_FechaHora, "dd/MM/yyyy HH:mm:ss") & "</span>
 </div>
 "
 ```
 
-### 📊 5. Barras de Riesgo
-**¿Qué es?** Barras de progreso con gradiente.
-**Tecnología:** CSS `width` dinámico.
-**Uso:** Panel lateral.
+---
 
+## 🎨 5. Detalle de Visuales Avanzados (HTML/CSS)
+
+### 🟦 Visual A: Barra Superior (Ticker Tape)
+*   **Tipo:** Tarjetas Horizontales (Scrollable).
+*   **Definición:** Una cinta que muestra el resumen rápido de todos los activos disponibles.
+*   **Tecnología:** HTML5 Flexbox.
+*   **Creación:** Usar medida `HTML_TopBar_Cards1`.
+*   **Uso:** Cabecera del reporte.
+*   **Código:**
 ```dax
-HTML_BarChart_Riesgo_Final = 
-VAR _MaxVolGlobal = CALCULATE(MAXX(VALUES('financial_market_data'[Ticker]), [Volatilidad Promedio]), ALLSELECTED('financial_market_data'))
-VAR _Filas = CONCATENATEX(
-    FILTER(VALUES('financial_market_data'[Ticker]), NOT(ISBLANK('financial_market_data'[Ticker])) && [Volatilidad Promedio] > 0),
-    VAR _Ticker = 'financial_market_data'[Ticker]
-    VAR _Vol = [Volatilidad Promedio]
-    VAR _AnchoBarra = DIVIDE(_Vol, _MaxVolGlobal) * 100
-    VAR _LogoUrl = SWITCH(_Ticker,
-        "AAPL", "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
-        "MSFT", "https://trendlyne-media-mumbai-new.s3.amazonaws.com/profilepicture/1554053_profilepicture.png",
-        "TSLA", "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Tesla_logo.png/500px-Tesla_logo.png",
-        "NVDA", "https://companieslogo.com/img/orig/NVDA-220e1e03.png?t=1722952498",
-        "BTC-USD", "https://www.criptonoticias.com/wp-content/uploads/2023/10/BC_Logo_.png",
-        "ETH-USD", "https://logokit.com/icons/ETH.png",
-        "https://cdn-icons-png.flaticon.com/256/5588/5588146.png"
-    )
-    RETURN
-    "<div class='row'>
-        <div class='identity'><img src='" & _LogoUrl & "' class='logo'><span class='ticker-name'>" & _Ticker & "</span></div>
-        <div class='bar-track'><div class='bar-fill' style='width: " & FORMAT(_AnchoBarra, "0") & "%;'></div></div>
-        <div class='value-label'>" & FORMAT(_Vol, "0.00%") & "</div>
-    </div>", "", [Volatilidad Promedio], DESC
-)
-RETURN
-"<style>
-    .panel { font-family: 'Segoe UI', sans-serif; background: #0d1117; padding: 25px; border-radius: 20px; color: white; border: 1px solid #30363d; }
-    .header { font-size: 14px; font-weight: bold; color: #58a6ff; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 2px; }
-    .row { display: flex; align-items: center; margin-bottom: 18px; gap: 15px; }
-    .identity { width: 130px; display: flex; align-items: center; gap: 12px; }
-    .logo { width: 32px; height: 32px; border-radius: 6px; background: white; padding: 4px; object-fit: contain; }
-    .ticker-name { font-weight: 700; font-size: 15px; color: #f0f6fc; }
-    .bar-track { flex-grow: 1; background: #21262d; height: 12px; border-radius: 6px; overflow: hidden; }
-    .bar-fill { height: 100%; background: linear-gradient(90deg, #1d4ed8 0%, #3b82f6 100%); box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
-    .value-label { width: 70px; text-align: right; font-size: 14px; font-weight: bold; color: #3b82f6; }
-</style>
-<div class='panel'><div class='header'>⚡ Riesgo y Volatilidad</div>" & _Filas & "</div>"
+HTML_TopBar_Cards1 = 
+VAR _Filas = CONCATENATEX( ... ) // (Ver código completo en versiones anteriores o archivo adjunto)
+// ... Código CSS Flexbox ...
 ```
 
-### 📈 6. Barras de Performance (Bidireccional)
-**¿Qué es?** Barras de rendimiento positivo (verde) y negativo (rojo).
-**Tecnología:** CSS width% y color de fondo condicional.
-**Uso:** Panel lateral derecho.
-
+### 📋 Visual B: Tabla Ejecutiva v3 (Clean)
+*   **Tipo:** Tabla HTML Personalizada.
+*   **Definición:** Listado detallado de activos con badges de colores para RSI y emojis para tendencia.
+*   **Tecnología:** CSS Grid/Flex, HTML Divs.
+*   **Creación:** Usar medida `HTML_Table_Executive_Clean_v3`.
+*   **Uso:** Panel central principal. Reemplaza la matriz nativa.
+*   **Código:**
 ```dax
-HTML_BarChart_Performance_Final = 
-VAR _MaxVarGlobal = CALCULATE(MAXX(VALUES('financial_market_data'[Ticker]), ABS([Variación %])), ALLSELECTED('financial_market_data'))
-VAR _Filas = CONCATENATEX(
-    FILTER(VALUES('financial_market_data'[Ticker]), NOT(ISBLANK('financial_market_data'[Ticker])) && [Precio Actual] > 0),
-    VAR _Ticker = 'financial_market_data'[Ticker]
-    VAR _Var = [Variación %]
-    VAR _Precio = [Precio Actual]
-    VAR _AnchoBarra = DIVIDE(ABS(_Var), _MaxVarGlobal) * 100
-    VAR _Color = IF(_Var >= 0, "#00c853", "#ff1744")
-    VAR _LogoUrl = SWITCH(_Ticker,
-            "AAPL", "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
-            "MSFT", "https://trendlyne-media-mumbai-new.s3.amazonaws.com/profilepicture/1554053_profilepicture.png",
-            "TSLA", "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Tesla_logo.png/500px-Tesla_logo.png",
-            "NVDA", "https://companieslogo.com/img/orig/NVDA-220e1e03.png?t=1722952498",
-            "BTC-USD", "https://www.criptonoticias.com/wp-content/uploads/2023/10/BC_Logo_.png",
-            "ETH-USD", "https://logokit.com/icons/ETH.png",
-            "https://cdn-icons-png.flaticon.com/256/5588/5588146.png"
+HTML_Table_Executive_Clean_v3 = 
+VAR _Filas = 
+    CONCATENATEX(
+        FILTER(VALUES('financial_market_data'[Ticker]), NOT(ISBLANK('financial_market_data'[Ticker])) && [Precio Actual] > 0),
+        VAR _Ticker = 'financial_market_data'[Ticker]
+        // ... Variables de lógica ...
+        VAR _TrendEmoji = SWITCH(_Trend, "Bullish", "😊", "Bearish", "☹️", "⚖️")
+        
+        RETURN
+        "<div class='t-row'> ... </div>", ""
     )
-    RETURN
-    "<div class='row'>
-        <div class='identity'><img src='" & _LogoUrl & "' class='logo'><span class='ticker-name'>" & _Ticker & "</span></div>
-        <div class='bar-track'><div class='bar-fill' style='width: " & FORMAT(_AnchoBarra, "0") & "%; background: " & _Color & ";'></div></div>
-        <div class='info-box'><div class='price-text'>$" & FORMAT(_Precio, "#,##0.00") & "</div><div class='pct-text' style='color: " & _Color & ";'>" & IF(_Var>=0,"+","") & FORMAT(_Var, "0.0%") & "</div></div>
-    </div>", "", [Variación %], DESC
-)
 RETURN
-"<style>
-    .panel { font-family: 'Segoe UI', sans-serif; background: #0d1117; padding: 25px; border-radius: 20px; color: white; border: 1px solid #30363d; }
-    .header { font-size: 14px; font-weight: bold; color: #00c853; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 2px; }
-    .row { display: flex; align-items: center; margin-bottom: 20px; gap: 15px; }
-    .identity { width: 130px; display: flex; align-items: center; gap: 12px; }
-    .logo { width: 32px; height: 32px; border-radius: 50%; background: white; padding: 3px; object-fit: contain; border: 1px solid #30363d; }
-    .ticker-name { font-weight: 800; font-size: 16px; color: #ffffff; }
-    .bar-track { flex-grow: 1; background: #161b22; height: 14px; border-radius: 7px; overflow: hidden; border: 1px solid #30363d; }
-    .bar-fill { height: 100%; transition: width 1s ease-in-out; }
-    .info-box { width: 110px; text-align: right; line-height: 1.1; }
-    .price-text { font-size: 15px; font-weight: bold; color: #f0f6fc; }
-    .pct-text { font-size: 12px; font-weight: 800; }
-</style>
-<div class='panel'><div class='header'>📈 Performance del Mercado</div>" & _Filas & "</div>"
+" <style> ... </style> <div class='t-container'> ... " & _Filas & " </div> "
 ```
 
-### 💎 7. Super Card Chart Ultimate
-**¿Qué es?** La tarjeta con gráfico de línea SVG.
-**Tecnología:** SVG dinámico con gradiente y coordenadas DAX.
-**Uso:** Detalle de un activo.
-
+### 💎 Visual C: Super Card Master (SVG Chart)
+*   **Tipo:** Tarjeta de KPI con Gráfico Integrado.
+*   **Definición:** Tarjeta de alto impacto para el activo seleccionado, incluye un gráfico de área con gradiente.
+*   **Tecnología:** SVG (Scalable Vector Graphics) generado dinámicamente con DAX.
+*   **Creación:** Usar medida `Visual_Impacto_Master_Con_Logos`.
+*   **Uso:** Panel de detalle (Drill-down).
+*   **Código:**
 ```dax
-Visual_SuperCard_Chart_Ultimate = 
-VAR _Ticker = SELECTEDVALUE('financial_market_data'[Ticker], "Resumen de Mercado")
-VAR _Precio = [Precio Actual]
-VAR _Var = [Variación %]
-VAR _RSI = [RSI Actual]
-VAR _EstadoRSI = [Estado RSI]
-VAR _ColorRSI = [Color RSI]
-VAR _Volatilidad = [Volatilidad Promedio]
-VAR _Tendencia = [Tendencia SMA]
-VAR _ColorVar = IF(_Var >= 0, "#00fa9a", "#ff4d4d")
-VAR _IconoVar = IF(_Var >= 0, "🔼", "🔽")
-
-VAR _NumDiasChart = 30
-VAR _RefDate = LASTDATE('financial_market_data'[Date])
-VAR _StartDate = _RefDate - _NumDiasChart
-VAR _ChartTable = CALCULATETABLE(
-        SUMMARIZE('financial_market_data', 'financial_market_data'[Date], "ClosePrice", SUM('financial_market_data'[Close])),
-        'financial_market_data'[Date] > _StartDate && 'financial_market_data'[Date] <= _RefDate,
-        ALLSELECTED('financial_market_data')
-    )
-VAR _MinP = MINX(_ChartTable, [ClosePrice])
-VAR _MaxP = MAXX(_ChartTable, [ClosePrice])
-VAR _RangeP = IF(_MaxP - _MinP = 0, 1, _MaxP - _MinP)
-VAR _SvgW = 500
-VAR _SvgH = 60
-VAR _SvgPathStr = CONCATENATEX(_ChartTable, VAR _DayIdx = DATEDIFF(_StartDate, 'financial_market_data'[Date], DAY) VAR _X = INT((_DayIdx / _NumDiasChart) * _SvgW) VAR _Y = INT(_SvgH - (([ClosePrice] - _MinP) / _RangeP * _SvgH)) RETURN _X & "," & _Y, " L ", 'financial_market_data'[Date], ASC)
-VAR _FinalPath = IF(ISEMPTY(_ChartTable), "", "M " & _SvgPathStr)
-
+Visual_Impacto_Master_Con_Logos = 
+// ... Cálculo de coordenadas SVG ...
+VAR _Points = CONCATENATEX( ... )
 RETURN
-"<style>
-    .super-container { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #131324 0%, #1c2a4a 100%); color: white; padding: 25px 30px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 20px; border-top: 2px solid #4e73df88; }
-    .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-    .ticker-name { font-size: 20px; color: #ffffff; font-weight: 700; letter-spacing: 1px; }
-    .ticker-badge { background: #4e73df; font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: bold;}
-    .main-content { display: flex; align-items: baseline; gap: 25px; }
-    .price-big { font-size: 72px; font-weight: 800; letter-spacing: -2px; line-height: 1; color: #ffffff;}
-    .change-box { font-size: 26px; font-weight: 600; color: " & _ColorVar & "; }
-    .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; border-top: 1px solid #ffffff33; padding-top: 20px; }
-    .metric-item { display: flex; flex-direction: column; gap: 5px; }
-    .m-label { font-size: 10px; text-transform: uppercase; color: #8fa1b8; letter-spacing: 1px; font-weight: 700; }
-    .m-val { font-size: 18px; font-weight: 700; }
-    .chart-area { margin-top: 10px; filter: drop-shadow(0 0 8px " & _ColorVar & "55); }
-</style>
-<div class='super-container'>
-    <div class='top-row'><div class='ticker-name'>" & _Ticker & "</div><div class='ticker-badge'>LIVE</div></div>
-    <div class='main-content'><div class='price-big'>$" & FORMAT(_Precio, "#,##0.00") & "</div><div class='change-box'>" & _IconoVar & " " & FORMAT(ABS(_Var), "0.0%") & "</div></div>
-    <div class='chart-area'>
-        <svg viewBox='0 0 500 60' preserveAspectRatio='none' width='100%' height='80'>
-            <defs><linearGradient id='gradLine' x1='0' y1='0' x2='1' y2='0'><stop offset='0%' stop-color='" & _ColorVar & "' stop-opacity='0.4'/><stop offset='100%' stop-color='" & _ColorVar & "' stop-opacity='1'/></linearGradient></defs>
-            <path d='" & _FinalPath & "' fill='none' stroke='url(#gradLine)' stroke-width='3' stroke-linecap='round' vector-effect='non-scaling-stroke' />
-        </svg>
-    </div>
-    <div class='metrics-grid'>
-        <div class='metric-item'><span class='m-label'>RSI (14)</span><span class='m-val' style='color: " & _ColorRSI & "'>" & FORMAT(_RSI, "0") & "</span></div>
-        <div class='metric-item'><span class='m-label'>Volatilidad</span><span class='m-val'>" & FORMAT(_Volatilidad, "0.0%") & "</span></div>
-        <div class='metric-item'><span class='m-label'>Tendencia</span><span class='m-val' style='font-size: 14px;'>" & _Tendencia & "</span></div>
-    </div>
-</div>"
+" <style> ... </style> <div class='card-container'> ... <svg> ... </svg> </div> "
 ```
+
+### 📊 Visual D: Barras de Riesgo
+*   **Tipo:** Gráfico de Barras HTML.
+*   **Definición:** Visualización comparativa de volatilidad.
+*   **Tecnología:** CSS width % calculado.
+*   **Creación:** Usar medida `HTML_BarChart_Riesgo_Final`.
+*   **Uso:** Panel lateral de análisis de riesgo.
+
+### 📈 Visual E: Performance (+/-)
+*   **Tipo:** Gráfico de Barras Bidireccional.
+*   **Definición:** Muestra ganancias (Verde) y pérdidas (Rojo) desde un eje central.
+*   **Tecnología:** Lógica condicional DAX aplicada a estilos CSS background.
+*   **Creación:** Usar medida `HTML_BarChart_Performance_Final`.
+*   **Uso:** Panel lateral de rendimiento.
 
 ---
 
-## 🚀 Cómo Implementar
-
-1.  **Copia y Pega:** Usa el código DAX proporcionado en nuevas medidas dentro de Power BI.
-2.  **Visual HTML:** Arrastra el visual `HTML Content` al lienzo y asigna la medida correspondiente.
-3.  **Ajusta:** Redimensiona el visual para que se adapte a tu diseño.
-
-*Finance Data Hub - Potenciando tus datos con estilo.*
+**Fin del Manual Técnico.**

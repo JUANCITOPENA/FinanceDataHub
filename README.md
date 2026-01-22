@@ -7,6 +7,11 @@
 
 **Finance Data Hub** es una solución integral que combina la potencia de **Python** para la extracción de datos en tiempo real con la capacidad de visualización de **Power BI**. El sistema automatiza el ciclo de vida del dato: desde su captura en mercados financieros hasta su presentación en dashboards ejecutivos de alto impacto.
 
+### Dashboard
+
+![Portada](Screenshot_763.png)
+
+
 ---
 
 ## 🧩 Módulos del Sistema
@@ -67,6 +72,10 @@ python main_loop.py
 
 > **Nota:** Verás logs indicando "Iniciando escaneo...", "Procesado OK" y "GIT: Push completado".
 
+
+### Terminal ejectando el Bot
+
+![Portada](Screenshot_764.png)
 ---
 
 ## 📊 Visualización en Power BI

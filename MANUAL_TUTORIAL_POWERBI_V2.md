@@ -4,6 +4,9 @@
 **Desarrollador:** Juancito Peña  
 **Tecnologías:** Power BI • DAX • HTML/CSS (Visual HTML Content) • Python • SVG
 
+
+![Portada](Screenshot_763.png)
+
 ---
 
 ## 🌟 1. Introducción y Contexto

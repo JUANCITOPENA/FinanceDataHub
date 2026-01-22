@@ -1,44 +1,36 @@
-# Manual Técnico Avanzado de FinanceDataHub v2.0
+# Manual de Implementación Técnica: Power BI & FinanceDataHub
 
-**Versión:** 2.0 (Enero 2026)  
+**Versión:** 2.1 (Enero 2026)  
 **Desarrollador:** Juancito Peña  
 **Tecnologías:** Power BI • DAX • HTML/CSS (Visual HTML Content) • Python
 
 ---
 
-## 📖 Introducción y Planteamiento
+## 🌟 Contexto del Proyecto: Finance Data Hub
 
-Hemos construido un ecosistema financiero completo que automatiza la ingesta de datos de mercado (acciones, criptomonedas) y los presenta en un dashboard de **alto impacto visual**.
+Este manual es parte del ecosistema **Finance Data Hub**, un proyecto que automatiza la inteligencia financiera. Antes de entrar en las medidas DAX, es crucial entender de dónde vienen los datos.
 
-### 🛑 El Problema
-Los reportes financieros tradicionales en Power BI suelen ser estáticos y limitados visualmente. Las tablas nativas son aburridas y los gráficos estándar no permiten personalización avanzada (micro-charts, gradientes, layouts complejos).
-
-### ✅ La Solución (FinanceDataHub)
-Una arquitectura híbrida:
-1.  **Backend (Python):** Un script autómata (`main_loop.py`) que descarga datos cada 5 minutos de Yahoo Finance y los sube a GitHub.
-2.  **Frontend (Power BI):** Un reporte conectado a la nube que utiliza **DAX avanzado + HTML/CSS** para renderizar tarjetas, micro-gráficos y barras de navegación que parecen una aplicación web moderna, no un simple Excel con colores.
+### ¿Cómo funciona la arquitectura?
+1.  **Módulo Mercado (Python):** Un script local (`main_loop.py`) descarga precios de Yahoo Finance (AAPL, MSFT, BTC, etc.) cada 5 minutos.
+2.  **Sincronización (Git):** Los datos se guardan en CSV y se suben automáticamente a este repositorio de GitHub.
+3.  **Power BI (Frontend):** Conectamos el reporte a los archivos CSV de GitHub. Esto permite que el reporte se alimente de datos frescos sin intervención manual.
 
 ---
 
-## 🛠️ Instrucciones de Implementación (Paso a Paso)
+## 🛠️ Fase 1: Preparación en Power BI
 
 ### 1. Instalación del Visual "HTML Content"
-Para que la magia visual funcione, necesitas un visual especial que interprete nuestro código HTML/CSS.
+Para lograr el impacto visual de las tarjetas y barras personalizadas, utilizamos HTML y CSS renderizado dentro de Power BI.
 
 1.  En Power BI Desktop, ve al panel de **Visualizaciones**.
 2.  Clic en los tres puntos `(...)` -> **Obtener más objetos visuales**.
-3.  Busca: `HTML Content`.
-4.  Agrega el visual certificado (icono naranja/azul con `< >`).
-
----
+3.  Busca: `HTML Content` (Certificado).
+4.  Agrégalo a tu caja de herramientas.
 
 ### 2. Modelado de Datos (Tablas Auxiliares)
+Necesitamos una tabla desconectada para crear segmentadores de riesgo personalizados.
 
-Necesitamos una tabla desconectada para crear segmentadores de riesgo personalizados que no afecten directamente a los datos pero sí a las medidas.
-
-1.  Ve a la pestaña **Modelado** (cinta de opciones superior).
-2.  Clic en **"Nueva tabla"**.
-3.  Pega el siguiente código DAX:
+*   Ve a la pestaña **Modelado** -> **Nueva tabla** y pega:
 
 ```dax
 Tab_Riesgo = DATATABLE(
@@ -53,11 +45,11 @@ Tab_Riesgo = DATATABLE(
 
 ---
 
-### 3. Creación de Medidas Base (El Cerebro) 🧠
+## 🧠 Fase 2: Medidas DAX Fundamentales
 
-Crea una tabla vacía llamada `_Medidas` para organizar todo. Luego, crea las siguientes medidas **una por una**.
+Crea una tabla vacía llamada `_Medidas` y organiza allí el siguiente código.
 
-#### A. Precios y Variaciones
+### A. Precios y Variaciones
 ```dax
 // 1. Precio de Cierre más reciente
 Precio Actual = 
@@ -65,7 +57,7 @@ VAR _UltimaFecha = LASTDATE('financial_market_data'[Date])
 RETURN
 CALCULATE(SUM('financial_market_data'[Close]), _UltimaFecha)
 
-// 2. Variación porcentual del activo (rendimiento total periodo seleccionado)
+// 2. Variación porcentual del activo
 Variación % = 
 VAR PrecioInicio = CALCULATE(SUM('financial_market_data'[Close]), FIRSTDATE('financial_market_data'[Date]))
 VAR PrecioFin = [Precio Actual]
@@ -73,7 +65,7 @@ RETURN
 DIVIDE(PrecioFin - PrecioInicio, PrecioInicio)
 ```
 
-#### B. Indicadores Técnicos y Semáforos
+### B. Indicadores Técnicos
 ```dax
 // 3. Indicador de Fuerza Relativa (RSI)
 RSI Actual = 
@@ -81,7 +73,7 @@ VAR _UltimaFecha = LASTDATE('financial_market_data'[Date])
 RETURN
 CALCULATE(AVERAGE('financial_market_data'[RSI_14]), _UltimaFecha)
 
-// 4. Semáforo Técnico (Texto de Estado)
+// 4. Semáforo Técnico
 Estado RSI = 
 VAR _RSI = [RSI Actual]
 RETURN
@@ -92,23 +84,23 @@ SWITCH(TRUE(),
     "Neutral"
 )
 
-// 5. Lógica de Colores Hexadecimales (Para usar en HTML)
+// 5. Color Dinámico para HTML
 Color RSI = 
 VAR _RSI = [RSI Actual]
 RETURN
 SWITCH(TRUE(),
-    _RSI >= 70, "#ff1744", // Rojo Intenso (Venta)
-    _RSI <= 30, "#00c853", // Verde Neón (Compra)
+    _RSI >= 70, "#ff1744", // Rojo (Venta)
+    _RSI <= 30, "#00c853", // Verde (Compra)
     "#ffea00"              // Amarillo (Neutral)
 )
 ```
 
-#### C. Volatilidad y Tendencias
+### C. Métricas de Riesgo
 ```dax
-// 6. Volatilidad Promedio (Riesgo)
+// 6. Volatilidad Promedio
 Volatilidad Promedio = AVERAGE('financial_market_data'[Volatility_Annualized])
 
-// 7. Señal de Tendencia (Texto de la SMA)
+// 7. Señal de Tendencia (Texto)
 Tendencia SMA = 
 VAR _UltimaFecha = LASTDATE('financial_market_data'[Date])
 RETURN
@@ -117,12 +109,12 @@ CALCULATE(MAX('financial_market_data'[Signal_Trend]), _UltimaFecha)
 
 ---
 
-### 4. Medidas Visuales (La Magia HTML/CSS) ✨
+## ✨ Fase 3: Visuales Avanzados (HTML/CSS)
 
-Estas medidas **NO** devuelven números, devuelven código HTML que el visual `HTML Content` renderiza.
+Estas medidas generan código web que el visual "HTML Content" interpreta. Copia y pega exactamente como están.
 
-#### 🟦 Visual 1: Barra Superior de Tarjetas (Ticker Tape)
-*Crea una medida llamada `HTML_TopBar_Cards1` y pega esto:*
+### 🟦 Visual 1: Barra Superior (Ticker Tape)
+*Crea una medida llamada `HTML_TopBar_Cards1`:*
 
 ```dax
 HTML_TopBar_Cards1 = 
@@ -167,13 +159,12 @@ RETURN
 <div class='top-bar'>" & _Filas & "</div>"
 ```
 
-#### 📊 Visual 2: Barras de Riesgo con Gradiente
-*Crea una medida llamada `HTML_BarChart_Riesgo_Final`:*
+### 📊 Visual 2: Barras de Riesgo con Gradiente
+*Crea la medida `HTML_BarChart_Riesgo_Final`:*
 
 ```dax
 HTML_BarChart_Riesgo_Final = 
 VAR _MaxVolGlobal = CALCULATE(MAXX(VALUES('financial_market_data'[Ticker]), [Volatilidad Promedio]), ALLSELECTED('financial_market_data'))
-
 VAR _Filas = CONCATENATEX(
     FILTER(VALUES('financial_market_data'[Ticker]), NOT(ISBLANK('financial_market_data'[Ticker])) && [Volatilidad Promedio] > 0),
     VAR _Ticker = 'financial_market_data'[Ticker]
@@ -207,11 +198,11 @@ RETURN
     .bar-fill { height: 100%; background: linear-gradient(90deg, #1d4ed8 0%, #3b82f6 100%); box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
     .value-label { width: 70px; text-align: right; font-size: 14px; font-weight: bold; color: #3b82f6; }
 </style>
-<div class='panel'><div class='header'>⚡ Riesgo y Volatilidad (Anualizada)</div>" & _Filas & "</div>"
+<div class='panel'><div class='header'>⚡ Riesgo y Volatilidad</div>" & _Filas & "</div>"
 ```
 
-#### 📈 Visual 3: Gráfico de Performance (Barras Positivas/Negativas)
-*Crea una medida llamada `HTML_BarChart_Performance_Final`:*
+### 📈 Visual 3: Performance (Barras + / -)
+*Crea la medida `HTML_BarChart_Performance_Final`:*
 
 ```dax
 HTML_BarChart_Performance_Final = 
@@ -256,8 +247,8 @@ RETURN
 <div class='panel'><div class='header'>📈 Performance del Mercado</div>" & _Filas & "</div>"
 ```
 
-#### 💎 Visual 4: Super Card Ultimate (Tarjeta Individual con Gráfico SVG)
-*Esta es la joya de la corona. Muestra el detalle completo de UN activo seleccionado. Crea la medida `Visual_SuperCard_Chart_Ultimate`:*
+### 💎 Visual 4: Super Card Ultimate (SVG Chart)
+*Crea la medida `Visual_SuperCard_Chart_Ultimate`. Esta medida genera un gráfico de líneas SVG dentro de la tarjeta.*
 
 ```dax
 Visual_SuperCard_Chart_Ultimate = 
@@ -323,20 +314,10 @@ RETURN
 
 ---
 
-### 5. Cómo Mostrar los Visuales en el Lienzo 🖼️
+## 🚀 Implementación Final
 
-Una vez creadas las medidas, sigue estos pasos para cada visual:
+1.  Arrastra el visual **HTML Content** al lienzo.
+2.  Pon la medida deseada en el campo **Values**.
+3.  Ajusta el tamaño y repite para los 4 visuales.
 
-1.  Arrastra el icono de **HTML Content** al lienzo vacío.
-2.  En el panel de datos, arrastra la medida que acabas de crear (ej. `HTML_TopBar_Cards1`) al campo **Values** del visual.
-3.  ¡Listo! El visual renderizará automáticamente el diseño web.
-
-**Recomendaciones de Layout:**
-*   **Barra Superior:** Coloca `HTML_TopBar_Cards1` ocupando todo el ancho arriba.
-*   **Panel Izquierdo:** Coloca `HTML_BarChart_Riesgo_Final` para ver el riesgo comparativo.
-*   **Panel Central:** Usa segmentadores de Power BI (Tickers, Fechas) o la tarjeta `Visual_SuperCard_Chart_Ultimate` para ver el detalle de un activo al seleccionarlo.
-*   **Panel Derecho:** Coloca `HTML_BarChart_Performance_Final`.
-
----
-
-**¡Disfruta de tu Dashboard Financiero de Nueva Generación!** 🚀
+¡Tu dashboard tendrá ahora una interfaz de nivel profesional!

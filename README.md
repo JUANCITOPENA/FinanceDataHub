@@ -129,9 +129,9 @@ Hemos implementado una arquitectura híbrida que combina la potencia de cálculo
 *   **Frontend (Power BI + HTML):** Uso del visual `HTML Content` para renderizar tarjetas, tablas y gráficos SVG definidos dinámicamente con DAX.
 
 ### 🔗 Dashboard en Vivo
-👉 **[Ver Dashboard Power BI Online]()**
+👉 **[Ver Dashboard Power BI Online](https://app.powerbi.com/view?r=eyJrIjoiNmNhNTg3MzctMTkzMC00Mjk5LTk3NTctYTQxNjFjNTg4ZTRmIiwidCI6IjMwOTE4NjllLTFiNWMtNDlhNy1iZWQwLTA1ODJiMjBlYzg0NSIsImMiOjJ9)**
 
----https://app.powerbi.com/view?r=eyJrIjoiNmNhNTg3MzctMTkzMC00Mjk5LTk3NTctYTQxNjFjNTg4ZTRmIiwidCI6IjMwOTE4NjllLTFiNWMtNDlhNy1iZWQwLTA1ODJiMjBlYzg0NSIsImMiOjJ9
+---
 
 ## 🛠️ 2. Modelado de Datos (Tablas Calculadas)
 

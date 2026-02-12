@@ -44,6 +44,9 @@ graph LR
 4.  **Consumo:** Power BI se conecta a los archivos "Raw" de GitHub, permitiendo actualizar el reporte desde cualquier lugar sin acceso a la PC local.
 
 ---
+### Dashboard
+
+![Portada](Screenshot_991.png)
 
 ## 🚀 Guía de Instalación y Uso
 
